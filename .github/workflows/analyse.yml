@@ -39,8 +39,9 @@ jobs:
         env:
           COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
 
-      - name: Audit dependencies
-        run: composer audit
-
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
+
+      - name: Audit dependencies
+        if: success() || failure()
+        run: composer audit
