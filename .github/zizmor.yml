@@ -1,0 +1,6 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        pxlrbt/*: ref-pin
+        '*': hash-pin

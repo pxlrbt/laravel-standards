@@ -6,6 +6,10 @@ on:
       php-version:
         type: string
         default: '8.4'
+      database:
+        description: 'mysql, or sqlite to use the database configured in phpunit.xml'
+        type: string
+        default: 'mysql'
       shards:
         description: 'JSON array of shard numbers, e.g. [1, 2, 3, 4]'
         type: string
@@ -32,16 +36,9 @@ jobs:
       matrix:
         shard: ${{ fromJSON(inputs.shards) }}
 
-    env:
-      DB_CONNECTION: mysql
-      DB_HOST: 127.0.0.1
-      DB_DATABASE: testing
-      DB_USERNAME: root
-      DB_PASSWORD: root
-
     services:
       mysql:
-        image: mysql:8.4
+        image: ${{ inputs.database == 'mysql' && 'mysql:8.4' || '' }}
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: testing
@@ -81,9 +78,22 @@ jobs:
           npm ci
           npm run build
 
+      - name: Configure MySQL
+        if: inputs.database == 'mysql'
+        env:
+          DB_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: |
+          {
+            echo "DB_CONNECTION=mysql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=${DB_PORT}"
+            echo "DB_DATABASE=testing"
+            echo "DB_USERNAME=root"
+            echo "DB_PASSWORD=root"
+          } >> "$GITHUB_ENV"
+
       - name: Execute tests
         run: vendor/bin/pest --parallel --shard="${SHARD}/${SHARD_TOTAL}"
         env:
-          DB_PORT: ${{ job.services.mysql.ports[3306] }}
           SHARD: ${{ matrix.shard }}
           SHARD_TOTAL: ${{ strategy.job-total }}

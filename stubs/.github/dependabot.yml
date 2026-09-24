@@ -6,6 +6,8 @@ updates:
     target-branch: {{ devBranch }}
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 {{ composerRegistries }}
     groups:
       composer:
@@ -16,6 +18,8 @@ updates:
     target-branch: {{ devBranch }}
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     groups:
       npm:
         update-types: [minor, patch]
@@ -25,6 +29,8 @@ updates:
     target-branch: {{ devBranch }}
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ['*']

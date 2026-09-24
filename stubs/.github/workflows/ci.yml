@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [{{ devBranch }}]
+    paths-ignore: ['**.md']
   pull_request:
+    paths-ignore: ['**.md']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,20 +18,23 @@ jobs:
     uses: pxlrbt/laravel-standards/.github/workflows/format.yml@v1
     permissions:
       contents: write
-    secrets: inherit
+    secrets:
+      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
 
   analyse:
     needs: format
     uses: pxlrbt/laravel-standards/.github/workflows/analyse.yml@v1
     permissions:
       contents: read
-    secrets: inherit
+    secrets:
+      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
 
   tests:
     needs: format
     uses: pxlrbt/laravel-standards/.github/workflows/tests.yml@v1
     permissions:
       contents: read
-    secrets: inherit
+    secrets:
+      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
     with:
       shards: '[1]'
