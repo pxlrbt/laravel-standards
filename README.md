@@ -66,7 +66,7 @@ php artisan standards:install --no-interaction --filament --dev-branch=dev
 
 ## What the installer does
 
-1. **Tooling:** creates `phpstan.neon`, an empty `phpstan-baseline.neon`, `rector.php`, `pint.json` and `.editorconfig`, and adds the `analyse` and `format` Composer scripts.
+1. **Tooling:** creates `phpstan.neon`, an empty `phpstan-baseline.neon`, `rector.php`, `pint.json` and `.editorconfig`, adds `min-release-age=7` to `.npmrc`, and adds the `analyse` and `format` Composer scripts.
 2. **Workflows:** creates `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` and `.github/dependabot.yml`.
 3. **Default user:** requires `pxlrbt/laravel-database-state` and creates `database/states/UserState.php` for `info@pixelarbeit.de`. States run automatically after every `migrate`, including on deploy.
 4. **Filament (optional):**
@@ -197,6 +197,15 @@ Dependabot PRs only receive Dependabot secrets, so `COMPOSER_AUTH` has to exist 
 ### Dependabot
 
 The generated `dependabot.yml` updates Composer, npm and GitHub Actions weekly, groups minor and patch updates, and waits 7 days before suggesting a new release. It also bumps the pinned action SHAs.
+
+## Supply-chain protection
+
+Freshly published releases are the most common way malicious packages spread, so new versions have to be at least 7 days old:
+
+- **npm:** the installer adds `min-release-age=7` to `.npmrc`. `npm install` and `npm update` then ignore versions published within the last 7 days. `npm ci` installs the lockfile as-is, so CI and deploys aren't affected.
+- **Composer:** Composer doesn't support a minimum release age yet. It's reserved for a future release. Composer 2.10+ blocks packages flagged as malware and versions with known security advisories by default, so don't disable `policy` in `composer.json`.
+- **Dependabot:** waits 7 days (`cooldown`) for both ecosystems and for GitHub Actions.
+- **CI:** `analyse.yml` runs `composer audit`, and all actions are pinned to commit SHAs.
 
 ## Testing
 

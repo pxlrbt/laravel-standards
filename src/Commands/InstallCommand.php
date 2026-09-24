@@ -80,6 +80,7 @@ class InstallCommand extends Command
         $this->copyStub('rector.php');
         $this->copyStub('pint.json');
         $this->copyStub('.editorconfig');
+        $this->configureNpmReleaseAge();
 
         $this->updateComposerJson(function (array $composer): array {
             $composer['scripts']['analyse'] ??= ['@putenv XDEBUG_MODE=off', 'phpstan analyse --memory-limit=2G'];
@@ -129,6 +130,21 @@ class InstallCommand extends Command
     public static function usesPestFive(): bool
     {
         return version_compare((string) InstalledVersions::getVersion('pestphp/pest'), '5.0.0', '>=');
+    }
+
+    protected function configureNpmReleaseAge(): void
+    {
+        $npmConfigPath = base_path('.npmrc');
+        $npmConfig = File::exists($npmConfigPath) ? File::get($npmConfigPath) : '';
+
+        if (str_contains($npmConfig, 'min-release-age')) {
+            $this->components->twoColumnDetail('.npmrc', '<fg=yellow>exists, skipped</>');
+
+            return;
+        }
+
+        File::put($npmConfigPath, ltrim(rtrim($npmConfig).PHP_EOL.'min-release-age=7'.PHP_EOL));
+        $this->components->twoColumnDetail('.npmrc', '<fg=green>min-release-age=7</>');
     }
 
     protected function installWorkflows(string $devBranch, bool $withPaidRepositories): void
