@@ -1,0 +1,121 @@
+name: Mutation
+
+on:
+  workflow_call:
+    inputs:
+      php-version:
+        type: string
+        default: '8.4'
+      database:
+        description: 'mysql, or sqlite to use the database configured in phpunit.xml'
+        type: string
+        default: 'mysql'
+      min-score:
+        description: 'Minimum mutation score for the changed tests'
+        type: string
+        default: '80'
+      node-version-file:
+        type: string
+        default: '.nvmrc'
+    secrets:
+      COMPOSER_AUTH:
+        required: false
+
+permissions: {}
+
+jobs:
+  mutation:
+    name: Mutation (changed tests)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    services:
+      mysql:
+        image: ${{ inputs.database == 'mysql' && 'mysql:8.4' || '' }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Find changed tests
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only --diff-filter=AM "$BASE_SHA"...HEAD -- 'tests/**Test.php' > changed-tests.txt
+          git diff --name-only --diff-filter=A "$BASE_SHA"...HEAD -- 'tests/**Test.php' > added-tests.txt
+
+          missing=$(xargs -r grep -L -E '(mutates|covers)\(' < added-tests.txt || true)
+          if [ -n "$missing" ]; then
+            echo "::error::New test files must declare mutates(Subject::class) for the class they test:"
+            echo "$missing"
+            exit 1
+          fi
+
+          if [ -s changed-tests.txt ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changed tests, skipping mutation testing."
+          fi
+
+      - name: Setup PHP
+        if: steps.changed.outputs.run == 'true'
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ inputs.php-version }}
+          coverage: pcov
+
+      - name: Install composer dependencies
+        if: steps.changed.outputs.run == 'true'
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+        with:
+          composer-options: '--prefer-dist'
+        env:
+          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
+
+      - name: Setup Node.js
+        if: steps.changed.outputs.run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          cache: npm
+
+      - name: Laravel setup
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          npm ci
+          npm run build
+
+      - name: Configure MySQL
+        if: steps.changed.outputs.run == 'true' && inputs.database == 'mysql'
+        env:
+          DB_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: |
+          {
+            echo "DB_CONNECTION=mysql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=${DB_PORT}"
+            echo "DB_DATABASE=testing"
+            echo "DB_USERNAME=root"
+            echo "DB_PASSWORD=root"
+          } >> "$GITHUB_ENV"
+
+      - name: Run mutation tests
+        if: steps.changed.outputs.run == 'true'
+        env:
+          MIN_SCORE: ${{ inputs.min-score }}
+        run: xargs vendor/bin/pest --mutate --parallel --covered-only --min="$MIN_SCORE" --ignore-min-score-on-zero-mutations < changed-tests.txt

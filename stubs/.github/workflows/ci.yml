@@ -38,3 +38,19 @@ jobs:
       COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
     with:
       shards: '[1]'
+
+  mutation:
+    needs: format
+    uses: pxlrbt/laravel-standards/.github/workflows/mutation.yml@v1
+    permissions:
+      contents: read
+    secrets:
+      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
+
+  coverage:
+    needs: format
+    uses: pxlrbt/laravel-standards/.github/workflows/coverage.yml@v1
+    permissions:
+      contents: read
+    secrets:
+      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}

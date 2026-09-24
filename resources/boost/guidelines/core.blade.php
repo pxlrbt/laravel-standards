@@ -2,6 +2,7 @@
 
 - Start Eloquent queries with `Model::query()`.
 - Structure tests with Arrange – Act – Assert.
+- Every new test file must declare the class it tests with `mutates(Subject::class);` at the top (after `uses()`). CI mutation-tests new and changed test files against those classes and fails below the minimum score, so assert on behavior and edge cases, not just that code runs.
 - Run `composer format` (Rector + Pint) and `composer analyse` (PHPStan) before finishing a change. Do not add errors to `phpstan-baseline.neon`; fix them.
 - Default users and other required production data live in invokable classes in `database/states` (pxlrbt/laravel-database-state). They run automatically after `migrate` and must be idempotent.
 
