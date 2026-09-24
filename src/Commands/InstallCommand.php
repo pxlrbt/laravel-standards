@@ -83,7 +83,6 @@ class InstallCommand extends Command
         $this->updateComposerJson(function (array $composer): array {
             $composer['scripts']['analyse'] ??= ['@putenv XDEBUG_MODE=off', 'phpstan analyse --memory-limit=2G'];
             $composer['scripts']['format'] ??= ['rector', 'pint --parallel --dirty'];
-
             $boostUpdate = "@php -r \"if (getenv('APP_ENV') !== 'production') { passthru('php artisan boost:update --ansi'); }\"";
             $postUpdate = (array) ($composer['scripts']['post-update-cmd'] ?? []);
 
