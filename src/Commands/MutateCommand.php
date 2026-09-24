@@ -46,6 +46,7 @@ class MutateCommand extends Command
                 base_path('vendor/bin/pest'),
                 '--mutate',
                 '--covered-only',
+                ...(InstallCommand::usesPestFive() ? ['--no-tia'] : []),
                 "--min={$this->option('min')}",
                 ...($this->option('filter') ? ["--filter={$this->option('filter')}"] : []),
                 ...$tests,

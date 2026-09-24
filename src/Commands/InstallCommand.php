@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\Process\Process;
 
 use function Laravel\Prompts\confirm;
@@ -99,9 +100,35 @@ class InstallCommand extends Command
             return;
         }
 
-        if (version_compare((string) InstalledVersions::getVersion('pestphp/pest'), '5.0.0', '>=')) {
-            $this->requirePackages(['pestphp/pest-plugin-rector'], dev: true);
+        if (! self::usesPestFive()) {
+            return;
         }
+
+        $this->requirePackages(['pestphp/pest-plugin-rector'], dev: true);
+
+        $classBasedTests = collect(File::allFiles(base_path('tests')))
+            ->filter(fn (SplFileInfo $file): bool => str_ends_with($file->getFilename(), 'Test.php')
+                && preg_match('/^(final\s+)?class\s+\w+\s+extends\s/m', $file->getContents()) === 1);
+
+        if ($classBasedTests->isNotEmpty()) {
+            $this->components->warn("Test impact analysis skipped: it needs Pest-style tests, found {$classBasedTests->count()} PHPUnit class tests.");
+
+            return;
+        }
+
+        $pestConfigPath = base_path('tests/Pest.php');
+
+        $pestConfig = File::exists($pestConfigPath) ? File::get($pestConfigPath) : '<?php'.PHP_EOL;
+
+        if (! str_contains($pestConfig, 'tia()')) {
+            File::put($pestConfigPath, rtrim($pestConfig).PHP_EOL.PHP_EOL.'pest()->tia()'.PHP_EOL.'    ->locally()'.PHP_EOL.'    ->filtered();'.PHP_EOL);
+            $this->components->twoColumnDetail('tests/Pest.php', '<fg=green>test impact analysis enabled</>');
+        }
+    }
+
+    public static function usesPestFive(): bool
+    {
+        return version_compare((string) InstalledVersions::getVersion('pestphp/pest'), '5.0.0', '>=');
     }
 
     protected function installWorkflows(string $devBranch, bool $withPaidRepositories): void
