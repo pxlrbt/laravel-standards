@@ -1,0 +1,61 @@
+{
+    "name": "pxlrbt/laravel-standards",
+    "description": "Shared tooling, AI guidelines, CI workflows and an installer for pxlrbt Laravel projects.",
+    "type": "composer-plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Dennis Koch",
+            "email": "info@pixelarbeit.de"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "composer-plugin-api": "^2.0",
+        "driftingly/rector-laravel": "^2.0",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.0",
+        "laravel/prompts": "^0.3",
+        "rector/rector": "^2.0"
+    },
+    "require-dev": {
+        "composer/composer": "^2.0",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^4.0"
+    },
+    "suggest": {
+        "pestphp/pest-plugin-rector": "Enables the Pest coding style rules in Standards::rector() (Pest 5+)"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pxlrbt\\LaravelStandards\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Pxlrbt\\LaravelStandards\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "class": "Pxlrbt\\LaravelStandards\\ComposerPlugin",
+        "laravel": {
+            "providers": [
+                "Pxlrbt\\LaravelStandards\\StandardsServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "format": "pint",
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

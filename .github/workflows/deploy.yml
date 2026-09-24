@@ -1,0 +1,32 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'development or production'
+        type: string
+        required: true
+    secrets:
+      DEPLOY_URL:
+        required: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+
+    steps:
+      - name: Trigger Ploi deployment
+        env:
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+        run: |
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "No deploy URL configured, skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error -X POST "$DEPLOY_URL"

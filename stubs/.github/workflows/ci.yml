@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [{{ devBranch }}]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  format:
+    uses: pxlrbt/laravel-standards/.github/workflows/format.yml@v1
+    permissions:
+      contents: write
+    secrets: inherit
+
+  analyse:
+    needs: format
+    uses: pxlrbt/laravel-standards/.github/workflows/analyse.yml@v1
+    permissions:
+      contents: read
+    secrets: inherit
+
+  tests:
+    needs: format
+    uses: pxlrbt/laravel-standards/.github/workflows/tests.yml@v1
+    permissions:
+      contents: read
+    secrets: inherit
+    with:
+      shards: '[1]'

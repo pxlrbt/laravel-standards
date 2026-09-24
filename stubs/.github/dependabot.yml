@@ -1,0 +1,30 @@
+version: 2
+{{ registries }}
+updates:
+  - package-ecosystem: composer
+    directory: /
+    target-branch: {{ devBranch }}
+    schedule:
+      interval: weekly
+{{ composerRegistries }}
+    groups:
+      composer:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /
+    target-branch: {{ devBranch }}
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: {{ devBranch }}
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ['*']

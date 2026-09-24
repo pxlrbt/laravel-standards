@@ -1,0 +1,3 @@
+{
+    "extend": "vendor/pxlrbt/laravel-standards/config/pint.json"
+}

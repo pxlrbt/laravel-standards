@@ -1,0 +1,34 @@
+name: Deploy
+
+on:
+  push:
+    branches: [{{ devBranch }}]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  development:
+    if: github.event_name != 'release'
+    uses: pxlrbt/laravel-standards/.github/workflows/deploy.yml@v1
+    with:
+      environment: development
+    secrets:
+      DEPLOY_URL: ${{ secrets.PLOI_DEV_DEPLOY_URL }}
+
+  production:
+    if: github.event_name == 'release'
+    uses: pxlrbt/laravel-standards/.github/workflows/deploy.yml@v1
+    with:
+      environment: production
+    secrets:
+      DEPLOY_URL: ${{ secrets.PLOI_PROD_DEPLOY_URL }}
+
+  sentry:
+    if: github.event_name == 'release'
+    uses: pxlrbt/laravel-standards/.github/workflows/sentry-release.yml@v1
+    permissions:
+      contents: read
+    secrets: inherit

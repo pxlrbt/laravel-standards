@@ -1,0 +1,36 @@
+name: Sentry Release
+
+on:
+  workflow_call:
+    secrets:
+      SENTRY_AUTH_TOKEN:
+        required: false
+
+permissions: {}
+
+jobs:
+  release:
+    name: Create Sentry release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: vars.SENTRY_PROJECT != ''
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@ff07929a6537bac57790c3451cf4d364aca38528 # v3.7.0
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+        with:
+          environment: production
+          release: ${{ github.event.release.tag_name }}
+          ignore_missing: true
