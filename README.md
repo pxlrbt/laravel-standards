@@ -9,6 +9,7 @@ It is a **dev dependency** that provides:
 - **CI workflows:** reusable GitHub workflows for formatting, analysis, tests, coverage, deploys (Ploi) and Sentry releases. All actions are pinned to commit SHAs.
 - **Installer:** `php artisan standards:install` sets up all of the above, Dependabot, a default user via [laravel-database-state](https://github.com/pxlrbt/laravel-database-state) and optionally Filament with our plugins.
 - **Mutation testing:** `php artisan standards:mutate` mutation-tests specific (new) tests locally.
+- **Failed jobs columns:** `php artisan standards:failed-jobs` publishes a migration with indexed `display_name` and `exception_name` columns on the failed jobs table.
 
 Nothing here is used at runtime, so servers can keep running `composer install --no-dev`.
 
@@ -69,13 +70,30 @@ php artisan standards:install --no-interaction --filament --dev-branch=dev
 1. **Tooling:** creates `phpstan.neon`, an empty `phpstan-baseline.neon`, `rector.php`, `pint.json` and `.editorconfig`, adds `min-release-age=7` to `.npmrc`, and adds the `analyse` and `format` Composer scripts.
 2. **Workflows:** creates `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` and `.github/dependabot.yml`.
 3. **Default user:** requires `pxlrbt/laravel-database-state` and creates `database/states/UserState.php` for `info@pixelarbeit.de`. States run automatically after every `migrate`, including on deploy.
-4. **Filament (optional):**
+4. **Failed jobs columns:** publishes the migration from [Failed jobs columns](#failed-jobs-columns).
+5. **Filament (optional):**
    - requires Filament, `filament-environment-indicator`, `laravel-docs`, `filament-changelog` and `filament-spotlight-pro`
    - adds the paid Composer repositories
    - creates the admin panel and registers the plugins in it
-5. **Pest 5 projects:** requires `pestphp/pest-plugin-rector` and enables test impact analysis (see [Testing](#testing)).
-6. **Boost:** installs `laravel/boost` and adds this package's guideline.
-7. Runs the migrations and prints the GitHub secrets you still need to set.
+6. **Pest 5 projects:** requires `pestphp/pest-plugin-rector` and enables test impact analysis (see [Testing](#testing)).
+7. **Boost:** installs `laravel/boost` and adds this package's guideline.
+8. Runs the migrations and prints the GitHub secrets you still need to set.
+
+## Failed jobs columns
+
+`php artisan standards:failed-jobs` publishes a migration that adds two indexed, generated columns to the failed jobs table, so you can group and filter failures in SQL:
+
+- `display_name`: the job class, from `payload->displayName`
+- `exception_name`: the exception class, the part of `exception` before the first `:`
+
+The installer runs it for new projects. In existing projects, run it once and commit the migration:
+
+```bash
+composer update pxlrbt/laravel-standards
+php artisan standards:failed-jobs
+```
+
+The migration reads the table name from `queue.failed.table`, so `jobs_failed` and other names work as long as the config matches. It only runs on MySQL and MariaDB and does nothing if the table is missing or already has the columns, so SQLite test suites are unaffected.
 
 ## Configuration
 

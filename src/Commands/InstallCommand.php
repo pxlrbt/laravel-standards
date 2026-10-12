@@ -40,6 +40,7 @@ class InstallCommand extends Command
         $this->installTooling();
         $this->installWorkflows($devBranch, $shouldInstallFilament);
         $this->installDatabaseState();
+        $this->call('standards:failed-jobs');
 
         if ($shouldInstallFilament) {
             $this->installFilament();
