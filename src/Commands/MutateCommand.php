@@ -48,11 +48,15 @@ class MutateCommand extends Command
             return self::FAILURE;
         }
 
+        // CLI opcache skews the coverage Pest picks mutants by and the mutants themselves, so images that switch it on
+        // with opcache.enable_cli=${PHP_OPCACHE_ENABLE_CLI} have it off here, down to the mutant processes.
         $result = Process::path(base_path())
             ->forever()
+            ->env(['PHP_OPCACHE_ENABLE_CLI' => '0'])
             ->run([
                 base_path('vendor/bin/pest'),
                 '--mutate',
+                '--parallel',
                 '--covered-only',
                 ...(InstallCommand::usesPestFive() ? ['--no-tia'] : []),
                 ...($this->output->isDecorated() ? ['--colors=always'] : []),
