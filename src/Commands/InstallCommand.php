@@ -82,6 +82,7 @@ class InstallCommand extends Command
         $this->copyStub('pint.json');
         $this->copyStub('.editorconfig');
         $this->configureNpmReleaseAge();
+        $this->installClaudeStopHook();
 
         $this->updateComposerJson(function (array $composer): array {
             $composer['scripts']['analyse'] ??= ['@putenv XDEBUG_MODE=off', 'phpstan analyse --memory-limit=2G'];
@@ -106,7 +107,7 @@ class InstallCommand extends Command
             return;
         }
 
-        $this->requirePackages(['pestphp/pest-plugin-rector'], dev: true);
+        $this->requirePackages(['pestphp/pest-plugin-rector', 'pestphp/pest-plugin-type-coverage'], dev: true);
 
         $classBasedTests = collect(File::allFiles(base_path('tests')))
             ->filter(fn (SplFileInfo $file): bool => str_ends_with($file->getFilename(), 'Test.php')
@@ -146,6 +147,24 @@ class InstallCommand extends Command
 
         File::put($npmConfigPath, ltrim(rtrim($npmConfig).PHP_EOL.'min-release-age=7'.PHP_EOL));
         $this->components->twoColumnDetail('.npmrc', '<fg=green>min-release-age=7</>');
+    }
+
+    protected function installClaudeStopHook(): void
+    {
+        $settingsPath = base_path('.claude/settings.json');
+        $settings = File::exists($settingsPath) ? File::json($settingsPath) : [];
+
+        if (str_contains((string) json_encode($settings['hooks']['Stop'] ?? []), 'standards:check')) {
+            $this->components->twoColumnDetail('.claude/settings.json', '<fg=yellow>Stop hook exists, skipped</>');
+
+            return;
+        }
+
+        $settings['hooks']['Stop'][] = ['hooks' => [['type' => 'command', 'command' => 'php artisan standards:check --hook', 'timeout' => 900]]];
+
+        File::ensureDirectoryExists(dirname($settingsPath));
+        File::put($settingsPath, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+        $this->components->twoColumnDetail('.claude/settings.json', '<fg=green>Stop hook runs standards:check</>');
     }
 
     protected function installWorkflows(string $devBranch, bool $withPaidRepositories): void

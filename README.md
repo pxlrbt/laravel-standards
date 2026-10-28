@@ -9,6 +9,7 @@ It is a **dev dependency** that provides:
 - **CI workflows:** reusable GitHub workflows for formatting, analysis, tests, coverage, deploys (Ploi) and Sentry releases. All actions are pinned to commit SHAs.
 - **Installer:** `php artisan standards:install` sets up all of the above, Dependabot, a default user via [laravel-database-state](https://github.com/pxlrbt/laravel-database-state) and optionally Filament with our plugins.
 - **Mutation testing:** `php artisan standards:mutate` mutation-tests specific (new) tests locally.
+- **Quality gate for AI agents:** `php artisan standards:check` runs PHPStan, type coverage and mutation testing on uncommitted changes; the installer wires it into a Claude Code Stop hook.
 - **Failed jobs columns:** `php artisan standards:failed-jobs` publishes a migration with indexed `display_name` and `exception_name` columns on the failed jobs table.
 
 Nothing here is used at runtime, so servers can keep running `composer install --no-dev`.
@@ -67,7 +68,7 @@ php artisan standards:install --no-interaction --filament --dev-branch=dev
 
 ## What the installer does
 
-1. **Tooling:** creates `phpstan.neon`, an empty `phpstan-baseline.neon`, `rector.php`, `pint.json` and `.editorconfig`, adds `min-release-age=7` to `.npmrc`, and adds the `analyse` and `format` Composer scripts.
+1. **Tooling:** creates `phpstan.neon` (level 9), an empty `phpstan-baseline.neon`, `rector.php`, `pint.json` and `.editorconfig`, adds `min-release-age=7` to `.npmrc`, adds the `analyse` and `format` Composer scripts, and adds a Stop hook running `standards:check` to `.claude/settings.json`.
 2. **Workflows:** creates `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` and `.github/dependabot.yml`.
 3. **Default user:** requires `pxlrbt/laravel-database-state` and creates `database/states/UserState.php` for `info@pixelarbeit.de`. States run automatically after every `migrate`, including on deploy.
 4. **Failed jobs columns:** publishes the migration from [Failed jobs columns](#failed-jobs-columns).
@@ -75,7 +76,7 @@ php artisan standards:install --no-interaction --filament --dev-branch=dev
    - requires Filament, `filament-environment-indicator`, `laravel-docs`, `filament-changelog` and `filament-spotlight-pro`
    - adds the paid Composer repositories
    - creates the admin panel and registers the plugins in it
-6. **Pest 5 projects:** requires `pestphp/pest-plugin-rector` and enables test impact analysis (see [Testing](#testing)).
+6. **Pest 5 projects:** requires `pestphp/pest-plugin-rector` and `pestphp/pest-plugin-type-coverage` and enables test impact analysis (see [Testing](#testing)).
 7. **Boost:** installs `laravel/boost` and adds this package's guideline.
 8. Runs the migrations and prints the GitHub secrets you still need to set.
 
@@ -123,7 +124,7 @@ parameters:
         - app/
 ```
 
-The shared config sets level 5. Parameters in your file win, so raise the level, add paths or add extensions (e.g. `calebdw/larastan-livewire`) right there. Existing errors go into the baseline with `vendor/bin/phpstan --generate-baseline`.
+The shared config sets level 5, new projects get level 9 in their own file. Parameters in your file win, so raise the level, add paths or add extensions (e.g. `calebdw/larastan-livewire`) right there. Existing errors go into the baseline with `vendor/bin/phpstan --generate-baseline`.
 
 ### Rector
 
@@ -186,7 +187,7 @@ jobs:
 | Workflow | What it does | Inputs |
 |---|---|---|
 | `format.yml` | Runs Rector and Pint. Commits the fixes on pushes and same-repo PRs, and fails on fork and Dependabot PRs instead | `php-version` |
-| `analyse.yml` | Runs PHPStan, then `composer audit` | `php-version` |
+| `analyse.yml` | Runs PHPStan, type coverage (min 100 %, if `pest-plugin-type-coverage` is installed), then `composer audit` | `php-version` |
 | `tests.yml` | Runs Pest in parallel, sharded | `php-version`, `database` (`mysql` or `sqlite`), `shards` (JSON array), `node-version-file` |
 | `coverage.yml` | Runs the full suite with PCOV and writes coverage to the run summary | `php-version`, `database`, `min` (0 = report only), `node-version-file` |
 | `deploy.yml` | Triggers a Ploi deploy webhook, and skips if the URL is empty | `environment`; secret `DEPLOY_URL` |
@@ -244,13 +245,15 @@ php artisan standards:mutate tests/Feature/CheckoutTest.php --filter="applies th
 |---|---|
 | `tests*` | Test files to mutation-test |
 | `--filter=` | Only run tests matching this filter |
-| `--min=80` | Minimum mutation score |
+| `--min=` | Minimum mutation score. Default: 90 if a test lives in an `Actions`, `Models`, `Services` or `Support` folder, otherwise 80 |
 
 Every test file you pass has to declare the class it tests:
 
 ```php
 mutates(PayoutCalculator::class);
 ```
+
+A class Pest can't mutate at all (e.g. an enum whose `match` returns plain values) counts as passed instead of 0 %.
 
 The command changes that class in small ways (mutations) and checks whether your tests notice. Surviving mutations show behavior that no test pins down. The Boost guideline tells AI agents to add `mutates()` to new tests and to run this command on exactly the tests they wrote.
 
@@ -261,6 +264,34 @@ pecl install pcov
 # Homebrew PHP fails with "pcre2.h not found"? Use:
 CPPFLAGS="-I/opt/homebrew/include" pecl install pcov
 ```
+
+### Type coverage
+
+`pest --type-coverage --min=100` fails if a parameter, property or return lacks a native type. CI runs it in `analyse.yml`.
+
+### Quality gate for AI agents
+
+```bash
+php artisan standards:check
+```
+
+Runs on the uncommitted PHP files (changed and untracked):
+
+- PHPStan on the changed source files
+- type coverage on the whole project
+- `standards:mutate` on changed tests of actions, models, services and support classes that declare `mutates()`
+
+The installer adds it as a [Claude Code Stop hook](https://code.claude.com/docs/en/hooks). With `--hook`, failures go to stderr with exit code 2, so the agent has to fix them before it finishes. It blocks only once per stop (`stop_hook_active`), so a check the agent can't fix doesn't loop forever.
+
+```json
+{
+    "hooks": {
+        "Stop": [{ "hooks": [{ "type": "command", "command": "php artisan standards:check --hook", "timeout": 900 }] }]
+    }
+}
+```
+
+In git worktrees, don't symlink `vendor/`: Composer and Pest resolve the symlink to the original checkout and test that code instead. Clone it (`cp -cR`, copy-on-write on APFS) or run `composer install`.
 
 ### Test impact analysis (Pest 5)
 

@@ -42,6 +42,10 @@ jobs:
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
 
+      - name: Run type coverage
+        if: hashFiles('vendor/pestphp/pest-plugin-type-coverage/composer.json') != ''
+        run: vendor/bin/pest --type-coverage --min=100
+
       - name: Audit dependencies
         if: success() || failure()
         run: composer audit
