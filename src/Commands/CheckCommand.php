@@ -12,7 +12,7 @@ class CheckCommand extends Command
     protected $signature = 'standards:check
         {--hook : Run as Claude Code Stop hook: read the hook input and report failures on stderr with exit code 2}';
 
-    protected $description = 'Run PHPStan, type coverage and mutation testing on the uncommitted changes';
+    protected $description = 'Run PHPStan, type coverage and mutation testing on the changes since the last push';
 
     public function handle(): int
     {
@@ -66,14 +66,39 @@ class CheckCommand extends Command
      */
     protected function changedPhpFiles(): array
     {
-        $changed = Process::path(base_path())->run(['git', 'diff', '--name-only', 'HEAD'])->output();
-        $untracked = Process::path(base_path())->run(['git', 'ls-files', '--others', '--exclude-standard'])->output();
+        $changed = $this->git(['diff', '--name-only', 'HEAD']);
+        $untracked = $this->git(['ls-files', '--others', '--exclude-standard']);
+        $base = $this->unpushedBase();
+        $unpushed = $base === null ? '' : $this->git(['diff', '--name-only', "{$base}...HEAD"]);
 
-        return collect(explode("\n", $changed."\n".$untracked))
+        return collect(explode("\n", $changed."\n".$untracked."\n".$unpushed))
             ->filter(fn (string $file): bool => str_ends_with($file, '.php') && File::exists(base_path($file)))
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * Agents often commit before they stop, so commits not pushed yet count as changes too: compared with the
+     * upstream branch, or with the remote default branch while the branch has never been pushed.
+     */
+    protected function unpushedBase(): ?string
+    {
+        foreach (['@{upstream}', 'origin/HEAD'] as $candidate) {
+            if (Process::path(base_path())->run(['git', 'rev-parse', '--verify', '--quiet', $candidate])->successful()) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $arguments
+     */
+    protected function git(array $arguments): string
+    {
+        return Process::path(base_path())->run(['git', ...$arguments])->output();
     }
 
     /**

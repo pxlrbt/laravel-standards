@@ -275,7 +275,7 @@ CPPFLAGS="-I/opt/homebrew/include" pecl install pcov
 php artisan standards:check
 ```
 
-Runs on the uncommitted PHP files (changed and untracked):
+Runs on the PHP files changed since the last push: uncommitted, untracked and committed but not pushed (compared with the upstream branch, or with `origin/HEAD` before the first push):
 
 - PHPStan on the changed source files
 - type coverage on the whole project
