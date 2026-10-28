@@ -96,7 +96,7 @@ class CheckCommand extends Command
             return null;
         }
 
-        return $this->failedOutput([base_path('vendor/bin/pest'), '--type-coverage', '--min=100', ...(InstallCommand::usesPestFive() ? ['--no-tia'] : [])]);
+        return $this->failedOutput([PHP_BINARY, '-d', 'memory_limit=-1', base_path('vendor/bin/pest'), '--type-coverage', '--min=100', ...(InstallCommand::usesPestFive() ? ['--no-tia'] : [])]);
     }
 
     /**

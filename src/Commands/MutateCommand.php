@@ -63,6 +63,8 @@ class MutateCommand extends Command
 
         // Pest scores a class without any mutation (e.g. an enum with a plain match) as 0 %, no test can change that.
         if ($result->failed() && str_contains($result->output(), 'No mutations created')) {
+            $this->components->info('Pest found nothing to mutate, so the score above does not apply: passed.');
+
             return self::SUCCESS;
         }
 
