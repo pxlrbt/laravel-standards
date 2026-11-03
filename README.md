@@ -265,7 +265,7 @@ pecl install pcov
 CPPFLAGS="-I/opt/homebrew/include" pecl install pcov
 ```
 
-Mutants run in parallel, one process per CPU core. CLI opcache distorts the results (other mutants, wrong scores), so an image that enables it with `opcache.enable_cli=${PHP_OPCACHE_ENABLE_CLI}` gets it switched off for the run. Run `pest --mutate` or `--coverage` yourself with `PHP_OPCACHE_ENABLE_CLI=0`.
+Mutants run in parallel, one process per CPU core. Several test files run one after the other, each with its own score. CLI opcache distorts the results (other mutants, wrong scores), so an image that enables it with `opcache.enable_cli=${PHP_OPCACHE_ENABLE_CLI}` gets it switched off for the run. Run `pest --mutate` or `--coverage` yourself with `PHP_OPCACHE_ENABLE_CLI=0`.
 
 ### Type coverage
 
