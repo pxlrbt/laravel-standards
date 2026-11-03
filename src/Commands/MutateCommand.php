@@ -48,6 +48,23 @@ class MutateCommand extends Command
             return self::FAILURE;
         }
 
+        $exitCode = self::SUCCESS;
+
+        // Parallel Pest accepts a single path, so every file gets its own run and its own score. All files run, so one
+        // failure doesn't hide the surviving mutants of the others.
+        foreach ($tests as $test) {
+            $testExitCode = $this->mutate($test);
+
+            if ($testExitCode !== self::SUCCESS) {
+                $exitCode = $testExitCode;
+            }
+        }
+
+        return $exitCode;
+    }
+
+    protected function mutate(string $test): int
+    {
         // CLI opcache skews the coverage Pest picks mutants by and the mutants themselves, so images that switch it on
         // with opcache.enable_cli=${PHP_OPCACHE_ENABLE_CLI} have it off here, down to the mutant processes.
         $result = Process::path(base_path())
@@ -60,9 +77,9 @@ class MutateCommand extends Command
                 '--covered-only',
                 ...(InstallCommand::usesPestFive() ? ['--no-tia'] : []),
                 ...($this->output->isDecorated() ? ['--colors=always'] : []),
-                '--min='.($this->option('min') ?? self::minScoreFor($tests)),
+                '--min='.($this->option('min') ?? self::minScoreFor([$test])),
                 ...($this->option('filter') ? ["--filter={$this->option('filter')}"] : []),
-                ...$tests,
+                $test,
             ], fn (string $type, string $output) => $this->output->write($output));
 
         // Pest scores a class without any mutation (e.g. an enum with a plain match) as 0 %, no test can change that.
