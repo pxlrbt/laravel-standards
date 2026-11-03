@@ -281,7 +281,7 @@ Runs on the PHP files changed since the last push: uncommitted, untracked and co
 
 - PHPStan on the changed source files
 - type coverage on the whole project
-- `standards:mutate` on changed tests of actions, models, services and support classes that declare `mutates()`
+- `standards:mutate` on new test files of actions, models, services and support classes that declare `mutates()`; a test added to an existing file doesn't make its older tests fail the check, so run those with `--filter` yourself
 
 The installer adds it as a [Claude Code Stop hook](https://code.claude.com/docs/en/hooks). With `--hook`, failures go to stderr with exit code 2, so the agent has to fix them before it finishes. It blocks only once per stop (`stop_hook_active`), so a check the agent can't fix doesn't loop forever.
 
