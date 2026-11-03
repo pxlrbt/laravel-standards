@@ -29,7 +29,7 @@ class CheckCommand extends Command
         $failures = array_filter([
             'PHPStan' => $this->runPhpStan($changedFiles),
             'Type coverage' => $this->runTypeCoverage(),
-            'Mutation testing' => $this->runMutationTesting($changedFiles),
+            'Mutation testing' => $this->runMutationTesting($this->changedPhpFiles(['--diff-filter=A'])),
         ]);
 
         if ($failures === []) {
@@ -62,14 +62,15 @@ class CheckCommand extends Command
     }
 
     /**
+     * @param  list<string>  $diffOptions
      * @return list<string>
      */
-    protected function changedPhpFiles(): array
+    protected function changedPhpFiles(array $diffOptions = []): array
     {
-        $changed = $this->git(['diff', '--name-only', 'HEAD']);
+        $changed = $this->git(['diff', '--name-only', ...$diffOptions, 'HEAD']);
         $untracked = $this->git(['ls-files', '--others', '--exclude-standard']);
         $base = $this->unpushedBase();
-        $unpushed = $base === null ? '' : $this->git(['diff', '--name-only', "{$base}...HEAD"]);
+        $unpushed = $base === null ? '' : $this->git(['diff', '--name-only', ...$diffOptions, "{$base}...HEAD"]);
 
         return collect(explode("\n", $changed."\n".$untracked."\n".$unpushed))
             ->filter(fn (string $file): bool => str_ends_with($file, '.php') && File::exists(base_path($file)))
@@ -125,12 +126,14 @@ class CheckCommand extends Command
     }
 
     /**
-     * @param  list<string>  $changedFiles
+     * Only new test files, so a test added to an existing file doesn't fail on the score of its older tests.
+     *
+     * @param  list<string>  $newFiles
      */
-    protected function runMutationTesting(array $changedFiles): ?string
+    protected function runMutationTesting(array $newFiles): ?string
     {
         $tests = array_values(array_filter(
-            $changedFiles,
+            $newFiles,
             fn (string $file): bool => str_starts_with($file, 'tests/')
                 && str_ends_with($file, 'Test.php')
                 && preg_match(MutateCommand::BUSINESS_LOGIC_TESTS_PATTERN, '/'.$file) === 1
